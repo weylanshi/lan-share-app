@@ -1,0 +1,14 @@
+{
+    "name": "webrtc-p2p-transfer",
+    "version": "1.0.0",
+    "description": "P2P file and text sharing over WebRTC with Docker support",
+    "main": "server.js",
+    "scripts": {
+        "start": "node server.js"
+    },
+    "dependencies": {
+        "express": "^4.18.2",
+        "uuid": "^9.0.1",
+        "ws": "^8.13.0"
+    }
+}

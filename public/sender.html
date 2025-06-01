@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>局域网 WebRTC 多文件 + 文字共享（发送端）</title>
+<style>
+  :root {
+    --system-blue: #007AFF;
+    --system-gray: #8E8E93;
+    --system-background: #F2F2F7;
+    --system-grouped-background: #FFFFFF;
+    --system-separator: #C6C6C8;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0;
+    min-height: 100vh;
+    background: var(--system-background);
+    color: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  h2 {
+    margin: 1.5em 0 1em;
+    font-size: 1.5em;
+    font-weight: 600;
+    color: #000;
+    text-align: center;
+  }
+
+  .card {
+    width: 100%;
+    max-width: 800px;
+    background: var(--system-grouped-background);
+    border-radius: 12px;
+    margin: 1em 0;
+    padding: 1.2em;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+
+  label {
+    color: var(--system-gray);
+    font-size: 0.9em;
+    font-weight: 500;
+    margin-bottom: 0.5em;
+    display: block;
+  }
+
+  input[type="text"] {
+    width: 100%;
+    padding: 0.8em;
+    font-size: 1em;
+    border: 1px solid var(--system-separator);
+    border-radius: 8px;
+    background: var(--system-grouped-background);
+    margin-bottom: 1em;
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 0.8em;
+    font-size: 1em;
+    border: 1px solid var(--system-separator);
+    border-radius: 8px;
+    background: var(--system-grouped-background);
+    margin-bottom: 1em;
+    resize: vertical;
+  }
+
+  .button-group {
+    display: flex;
+    gap: 0.5em;
+    margin: 0.5em 0;
+  }
+
+  button {
+    padding: 0.8em 1.5em;
+    font-size: 1em;
+    border-radius: 8px;
+    background: var(--system-blue);
+    color: white;
+    border: none;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  button:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+
+  .secondary-button {
+    background: var(--system-gray);
+  }
+
+  #fileInput {
+    display: none;
+  }
+
+  .file-input-label {
+    display: inline-block;
+    padding: 0.8em 1.5em;
+    background: var(--system-blue);
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+
+  progress {
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--system-separator);
+    margin: 0.5em 0;
+  }
+
+  progress::-webkit-progress-bar {
+    background: var(--system-separator);
+    border-radius: 2px;
+  }
+
+  progress::-webkit-progress-value {
+    background: var(--system-blue);
+    border-radius: 2px;
+  }
+
+  #progressText {
+    color: var(--system-gray);
+    font-size: 0.9em;
+  }
+
+  #receiverList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  #receiverList li {
+    padding: 0.8em;
+    margin: 0.5em 0;
+    background: var(--system-background);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    color: #000;
+  }
+
+  #receiverList li::before {
+    content: "●";
+    color: #34C759;
+    margin-right: 0.5em;
+    font-size: 1.2em;
+  }
+
+  .copy-button {
+    padding: 0.4em 0.8em;
+    font-size: 0.9em;
+    background: var(--system-background);
+    color: var(--system-blue);
+    border: 1px solid var(--system-blue);
+    border-radius: 6px;
+    margin-left: auto;
+  }
+
+  @media (max-width: 600px) {
+    body {
+      padding: 0 1em;
+    }
+    
+    .card {
+      padding: 1em;
+    }
+
+    .button-group {
+      flex-direction: column;
+    }
+
+    button {
+      width: 100%;
+    }
+  }
+</style>
+</head>
+<body>
+
+<h2>发送端 - 多文件 & 文字共享</h2>
+
+<div class="card">
+  <label>房间ID</label>
+  <div style="display: flex; gap: 0.5em; align-items: center;">
+    <input type="text" id="roomId" readonly />
+    <button id="btnCreate">生成</button>
+    <button class="copy-button" onclick="copyRoomId()">复制</button>
+  </div>
+</div>
+
+<div class="card">
+  <label>已连接的接收端</label>
+  <ul id="receiverList"></ul>
+  <p id="noReceivers" style="color: var(--system-gray); text-align: center;">暂无连接的接收端</p>
+</div>
+
+<div class="card">
+  <label>共享文字</label>
+  <textarea id="textInput" placeholder="在这里输入要共享的文字"></textarea>
+  <div class="button-group">
+    <button id="btnSendText" disabled>发送</button>
+    <button class="copy-button" onclick="copyText()">复制文字</button>
+  </div>
+</div>
+
+<div class="card">
+  <label>共享文件</label>
+  <label class="file-input-label" for="fileInput">选择文件</label>
+  <input type="file" id="fileInput" multiple />
+  <div id="selectedFiles" style="margin: 1em 0;"></div>
+  <button id="btnSendFiles" disabled>发送文件</button>
+</div>
+
+<div class="card">
+  <label>传输进度</label>
+  <progress id="progressBar" value="0" max="100"></progress>
+  <span id="progressText"></span>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+<script>
+(() => {
+  const wsUrl = location.origin.replace(/^http/, 'ws');
+  let ws, pc;
+  let dataChannels = new Map();  // key: client id, value: dataChannel
+  let roomId = null;
+  let clients = new Set();  // 保存所有接收端ID
+  const maxChunkSize = 16 * 1024; // 16KB 分片大小
+  let myClientId = null;
+
+  // UI Elements
+  const roomIdInput = document.getElementById('roomId');
+  const btnCreate = document.getElementById('btnCreate');
+  const textInput = document.getElementById('textInput');
+  const btnSendText = document.getElementById('btnSendText');
+  const fileInput = document.getElementById('fileInput');
+  const btnSendFiles = document.getElementById('btnSendFiles');
+  const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
+  const receiverList = document.getElementById('receiverList');
+  const noReceivers = document.getElementById('noReceivers');
+  const selectedFiles = document.getElementById('selectedFiles');
+
+  // 页面加载时自动恢复房间ID
+  window.addEventListener('DOMContentLoaded', () => {
+    const rid = localStorage.getItem('senderRoomId');
+    if (rid) {
+      roomId = rid;
+      roomIdInput.value = rid;
+      initWebSocket();
+      updateButtons(false);
+    }
+  });
+
+  // 生成随机房间ID
+  function generateRoomId() {
+    return Math.random().toString(36).substr(2, 8);
+  }
+
+  // 初始化 WebSocket 信令
+  function initWebSocket() {
+    ws = new WebSocket(wsUrl);
+    ws.onopen = () => {
+      // 等待 welcome 消息获取 clientId
+    };
+    ws.onmessage = async (evt) => {
+      const msg = JSON.parse(evt.data);
+
+      if (msg.type === 'welcome') {
+        myClientId = msg.clientId;
+        ws.send(JSON.stringify({ type: 'join', room: roomId }));
+        log(`WebSocket 已连接，加入房间 ${roomId}`);
+        return;
+      }
+
+      if (msg.type === 'new-peer') {
+        const clientId = msg.clientId;
+        if (dataChannels.has(clientId)) return;
+        createPeerConnection(clientId, true);
+      }
+
+      if (msg.type === 'offer' && msg.from) {
+        createPeerConnection(msg.from, false);
+        await peerConnections[msg.from].setRemoteDescription(new RTCSessionDescription(msg.offer));
+        const answer = await peerConnections[msg.from].createAnswer();
+        await peerConnections[msg.from].setLocalDescription(answer);
+        ws.send(JSON.stringify({ type: 'answer', to: msg.from, answer }));
+      }
+
+      if (msg.type === 'answer' && msg.from) {
+        if (!peerConnections[msg.from]) return;
+        await peerConnections[msg.from].setRemoteDescription(new RTCSessionDescription(msg.answer));
+      }
+
+      if (msg.type === 'ice-candidate' && msg.from) {
+        if (!peerConnections[msg.from]) return;
+        try {
+          await peerConnections[msg.from].addIceCandidate(msg.candidate);
+        } catch (e) {
+          console.warn('添加 ICE candidate 失败', e);
+        }
+      }
+
+      if (msg.type === 'sender-left') {
+        alert('有接收端断开连接');
+        updateReceiverList(); // 更新接收端列表
+      }
+    };
+    ws.onclose = () => {
+      log('WebSocket 连接关闭');
+      clients.clear(); // 清空所有接收端
+      dataChannels.clear(); // 清空所有数据通道
+      updateButtons(false);
+      updateReceiverList(); // 更新接收端列表
+    };
+  }
+
+  // PeerConnection 管理
+  let peerConnections = {};
+
+  function createPeerConnection(clientId, isInitiator) {
+    if (peerConnections[clientId]) return;
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
+    peerConnections[clientId] = pc;
+
+    pc.onicecandidate = ({ candidate }) => {
+      if (candidate) {
+        ws.send(JSON.stringify({ type: 'ice-candidate', to: clientId, candidate }));
+      }
+    };
+
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+        log('PeerConnection 断开');
+        clients.delete(clientId); // 从接收端列表中移除
+        dataChannels.delete(clientId); // 从数据通道列表中移除
+        if (clients.size === 0) updateButtons(false);
+        updateReceiverList(); // 更新接收端列表
+      }
+    };
+
+    if (isInitiator) {
+      const dc = pc.createDataChannel('data');
+      setupDataChannel(dc, clientId);
+      dataChannels.set(clientId, dc);
+      pc.createOffer().then(offer => {
+        pc.setLocalDescription(offer);
+        ws.send(JSON.stringify({ type: 'offer', to: clientId, offer }));
+      });
+    } else {
+      pc.ondatachannel = (e) => {
+        setupDataChannel(e.channel, clientId);
+        dataChannels.set(clientId, e.channel);
+      };
+    }
+  }
+
+  // 监听 DataChannel 事件
+  function setupDataChannel(dc, clientId) {
+    dc.binaryType = 'arraybuffer';
+    dc.onopen = () => {
+      log(`DataChannel 与 ${clientId} 连接打开`);
+      clients.add(clientId);
+      updateButtons(true);
+      updateReceiverList();
+    };
+    dc.onclose = () => {
+      log(`DataChannel 与 ${clientId} 关闭`);
+      clients.delete(clientId);
+      dataChannels.delete(clientId);
+      if (clients.size === 0) updateButtons(false);
+      updateReceiverList();
+    };
+    dc.onerror = (e) => {
+      console.error('DataChannel 错误:', e);
+      clients.delete(clientId);
+      dataChannels.delete(clientId);
+      if (clients.size === 0) updateButtons(false);
+      updateReceiverList();
+    };
+
+    let receivedBuffers = [];
+    let receivedSize = 0;
+    let fileMetadata = null;
+
+    dc.onmessage = (event) => {
+      const data = event.data;
+
+      // 解析消息格式：JSON 包裹信息或 ArrayBuffer 文件数据
+      if (typeof data === 'string') {
+        try {
+          const msg = JSON.parse(data);
+
+          if (msg.type === 'text') {
+            log(`接收文字：${msg.text}`);
+            alert(`接收端收到文字：\n${msg.text}`);
+          }
+
+          if (msg.type === 'file-meta') {
+            fileMetadata = msg.meta;
+            receivedBuffers = [];
+            receivedSize = 0;
+            log(`开始接收文件：${fileMetadata.name} 大小 ${fileMetadata.size} 字节`);
+          }
+
+          if (msg.type === 'file-end') {
+            // 文件接收完成，合并并触发下载
+            const blob = new Blob(receivedBuffers);
+            downloadFile(blob, fileMetadata.name);
+            receivedBuffers = [];
+            receivedSize = 0;
+            fileMetadata = null;
+            log('文件接收完成');
+          }
+        } catch (e) {
+          console.error('解析消息失败', e);
+        }
+      } else if (data instanceof ArrayBuffer) {
+        receivedBuffers.push(data);
+        receivedSize += data.byteLength;
+        const percent = fileMetadata ? Math.floor((receivedSize / fileMetadata.size) * 100) : 0;
+        progressBar.value = percent;
+        progressText.textContent = `下载进度: ${percent}%`;
+      }
+    };
+  }
+
+  // 下载文件辅助函数
+  function downloadFile(blob, filename) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  // 发送文字
+  function sendText() {
+    const text = textInput.value.trim();
+    if (!text) return;
+    const msg = JSON.stringify({ type: 'text', text });
+    dataChannels.forEach(dc => {
+      if (dc.readyState === 'open') dc.send(msg);
+    });
+    log('文字已发送');
+    textInput.value = '';
+  }
+
+  // 发送文件（先 ZIP，再分片发送）
+  async function sendFiles() {
+    const files = Array.from(fileInput.files);
+    if (files.length === 0) return;
+
+    // ZIP 打包
+    const zip = new JSZip();
+    files.forEach(f => zip.file(f.name, f));
+    const zippedBlob = await zip.generateAsync({ type: 'blob' });
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const arrayBuffer = reader.result;
+
+      // 先发送文件元信息
+      const meta = {
+        name: `files_${Date.now()}.zip`,
+        size: arrayBuffer.byteLength
+      };
+
+      const metaMsg = JSON.stringify({ type: 'file-meta', meta });
+      dataChannels.forEach(dc => {
+        if (dc.readyState === 'open') dc.send(metaMsg);
+      });
+
+      // 分片发送数据
+      const chunkSize = maxChunkSize;
+      let offset = 0;
+
+      function sendChunk() {
+        if (offset >= arrayBuffer.byteLength) {
+          const endMsg = JSON.stringify({ type: 'file-end' });
+          dataChannels.forEach(dc => {
+            if (dc.readyState === 'open') dc.send(endMsg);
+          });
+          progressBar.value = 100;
+          progressText.textContent = `上传完成`;
+          return;
+        }
+
+        const slice = arrayBuffer.slice(offset, offset + chunkSize);
+        dataChannels.forEach(dc => {
+          if (dc.readyState === 'open') dc.send(slice);
+        });
+        offset += chunkSize;
+        const percent = Math.floor((offset / arrayBuffer.byteLength) * 100);
+        progressBar.value = percent;
+        progressText.textContent = `上传进度: ${percent}%`;
+
+        setTimeout(sendChunk, 10); // 控制发送节奏，避免阻塞
+      }
+
+      sendChunk();
+    };
+
+    reader.readAsArrayBuffer(zippedBlob);
+  }
+
+  // 日志
+  function log(msg) {
+    console.log('[Sender]', msg);
+  }
+
+  // UI 控制按钮可用状态
+  function updateButtons(enabled) {
+    btnSendText.disabled = !enabled;
+    btnSendFiles.disabled = !enabled;
+  }
+
+  btnCreate.onclick = () => {
+    roomId = generateRoomId();
+    roomIdInput.value = roomId;
+    localStorage.setItem('senderRoomId', roomId);
+    initWebSocket();
+    updateButtons(false);
+  };
+
+  btnSendText.onclick = sendText;
+  btnSendFiles.onclick = sendFiles;
+
+  // 更新接收端列表显示
+  function updateReceiverList() {
+    receiverList.innerHTML = '';
+    if (clients.size > 0) {
+      noReceivers.style.display = 'none';
+      clients.forEach(clientId => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <span>接收端 ${clientId.slice(0, 8)}...</span>
+          <button class="copy-button" onclick="copyClientId('${clientId}')">复制ID</button>
+        `;
+        receiverList.appendChild(li);
+      });
+    } else {
+      noReceivers.style.display = 'block';
+    }
+  }
+
+  // 复制文字
+  function copyText() {
+    const text = document.getElementById('textInput').value;
+    if (text) {
+      navigator.clipboard.writeText(text).then(() => {
+        alert('文字已复制到剪贴板');
+      });
+    }
+  }
+
+  // 复制客户端ID
+  function copyClientId(clientId) {
+    navigator.clipboard.writeText(clientId).then(() => {
+      alert('接收端ID已复制到剪贴板');
+    });
+  }
+
+  // 文件选择处理
+  fileInput.addEventListener('change', () => {
+    const files = fileInput.files;
+    selectedFiles.innerHTML = '';
+    
+    if (files.length > 0) {
+      btnSendFiles.disabled = false;
+      
+      // 创建文件列表
+      const fileList = document.createElement('ul');
+      fileList.style.cssText = `
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      `;
+      
+      // 添加清空按钮
+      const clearButton = document.createElement('button');
+      clearButton.textContent = '清空文件列表';
+      clearButton.style.cssText = `
+        margin-bottom: 1em;
+        background: var(--system-gray);
+      `;
+      clearButton.onclick = () => {
+        fileInput.value = '';
+        selectedFiles.innerHTML = '';
+        btnSendFiles.disabled = true;
+      };
+      selectedFiles.appendChild(clearButton);
+      
+      Array.from(files).forEach((file, index) => {
+        const li = document.createElement('li');
+        li.style.cssText = `
+          display: flex;
+          align-items: center;
+          padding: 0.8em;
+          margin: 0.5em 0;
+          background: var(--system-background);
+          border-radius: 8px;
+          color: #000;
+        `;
+        
+        // 文件图标
+        const icon = document.createElement('span');
+        icon.textContent = '📄';
+        icon.style.marginRight = '0.5em';
+        
+        // 文件信息
+        const info = document.createElement('div');
+        info.style.flex = '1';
+        
+        const name = document.createElement('div');
+        name.textContent = file.name;
+        name.style.fontWeight = '500';
+        
+        const size = document.createElement('div');
+        size.textContent = formatFileSize(file.size);
+        size.style.fontSize = '0.9em';
+        size.style.color = 'var(--system-gray)';
+        
+        info.appendChild(name);
+        info.appendChild(size);
+        
+        // 删除按钮
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = '删除';
+        deleteButton.style.cssText = `
+          padding: 0.4em 0.8em;
+          font-size: 0.9em;
+          background: var(--system-background);
+          color: #FF3B30;
+          border: 1px solid #FF3B30;
+          border-radius: 6px;
+          margin-left: 0.5em;
+        `;
+        deleteButton.onclick = () => {
+          const dt = new DataTransfer();
+          const files = fileInput.files;
+          for (let i = 0; i < files.length; i++) {
+            if (i !== index) {
+              dt.items.add(files[i]);
+            }
+          }
+          fileInput.files = dt.files;
+          if (dt.files.length === 0) {
+            btnSendFiles.disabled = true;
+          }
+          // 触发 change 事件以更新文件列表
+          fileInput.dispatchEvent(new Event('change'));
+        };
+        
+        li.appendChild(icon);
+        li.appendChild(info);
+        li.appendChild(deleteButton);
+        fileList.appendChild(li);
+      });
+      
+      selectedFiles.appendChild(fileList);
+    } else {
+      btnSendFiles.disabled = true;
+    }
+  });
+
+  // 格式化文件大小
+  function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+})();
+
+// 将复制功能移到全局作用域
+window.copyText = function() {
+  const text = document.getElementById('textInput').value;
+  if (text) {
+    navigator.clipboard.writeText(text).then(() => {
+      alert('文字已复制到剪贴板');
+    });
+  }
+};
+
+window.copyRoomId = function() {
+  const roomId = document.getElementById('roomId').value;
+  if (roomId) {
+    navigator.clipboard.writeText(roomId).then(() => {
+      alert('房间ID已复制到剪贴板');
+    });
+  }
+};
+
+window.copyClientId = function(clientId) {
+  navigator.clipboard.writeText(clientId).then(() => {
+    alert('接收端ID已复制到剪贴板');
+  });
+};
+</script>
+
+</body>
+</html>
